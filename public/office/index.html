@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Astacode Agent Office</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: kantor 3D memenuhi layar, panel kaca melayang di atasnya (bar atas, statistik, kartu agent, alur tugas, daftar). Di layar sempit panel turun ke bawah kantor. */
+:root{
+  color-scheme:light; --bg:#f6f8fb; --sky1:#ffffff; --sky2:#e8edf5; --surface:#ffffff; --glass:rgba(255,255,255,.92); --ink:#2b2d33; --muted:#667085; --line:#e1e6ee;
+  --brand:#2f6bc4; --brand-soft:#e5eefb; --on-brand:#ffffff; --logo-chip:#ffffff; --shadow:0 8px 24px rgba(40,60,100,.12);
+  --s-idle:#98a2b3; --s-working:#2f6bc4; --s-discussing:#d98a1f; --s-meeting:#7a5bd1; --s-review:#0e9aa0; --s-done:#2f9e5b; --s-break:#c2683f;
+  --font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13.5px;line-height:1.45}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.app{position:relative;height:100%;min-height:720px;overflow:hidden}
+.stage{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 30%,var(--sky1),var(--sky2));overflow:hidden}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.top{position:absolute;top:12px;left:16px;right:16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px;z-index:3}
+.logo{background:var(--logo-chip);border-radius:8px;padding:4px 10px;display:flex}
+.logo img{height:30px;display:block}
+.top h1{font-size:15px;font-weight:800;margin:0 auto 0 0;letter-spacing:-.01em}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-weight:600;font-size:12.5px}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:6px 10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.seg button[aria-pressed="true"]{background:var(--brand-soft);color:var(--brand)}
+.source{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--s-idle);display:inline-block}
+.source .dot{background:var(--s-discussing)} .source.live .dot{background:var(--s-done)}
+.stats{position:absolute;top:78px;left:16px;display:flex;gap:10px;z-index:2}
+.stat{padding:9px 14px;min-width:118px}
+.stat span{font-size:11px;color:var(--muted);display:block}
+.stat b{font-size:20px;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat small{font-size:11px;color:var(--muted);font-weight:600}
+.cam{position:absolute;top:78px;right:16px;display:flex;flex-direction:column;z-index:2;overflow:hidden}
+.cam button{border:0;background:none;width:34px;height:32px;font-size:16px;font-weight:600;display:grid;place-items:center}
+.cam button:hover{background:var(--brand-soft);color:var(--brand)}
+.detail{position:absolute;top:78px;right:16px;width:304px;padding:14px;z-index:2}
+.flow{position:absolute;left:16px;bottom:16px;width:min(600px,calc(100% - 400px));padding:14px 16px;z-index:2}
+.lists{position:absolute;right:16px;bottom:16px;width:350px;padding:10px 12px 12px;z-index:2}
+#hermes{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,calc(100% - 32px));max-height:82%;overflow:auto;padding:18px;z-index:6}
+.who{display:flex;gap:10px;align-items:center}
+.avatar{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff}
+.who b{display:block;font-size:15px;line-height:1.2}
+.who small{color:var(--muted);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;border:1px solid var(--line);white-space:nowrap}
+.kv{margin:10px 0 0}
+.kv>div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);align-items:center}
+.kv dt{color:var(--muted);font-size:12px;flex:none}
+.kv dd{margin:0;text-align:right;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.bar{height:6px;background:var(--brand-soft);border-radius:99px;overflow:hidden;margin:10px 0 2px}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:99px;transition:width .4s}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.chips span{font-size:11px;background:var(--brand-soft);color:var(--brand);border-radius:6px;padding:1px 7px;font-weight:600}
+.flowhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin-bottom:12px}
+.flowhead b{font-size:14px}
+.flowhead span{color:var(--muted);font-size:12px;font-family:var(--mono)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);position:relative}
+.steps::before,.steps i.fill{content:"";position:absolute;top:13px;left:12.5%;height:3px;border-radius:3px;background:var(--line);width:75%}
+.steps i.fill{background:var(--brand);transition:width .5s}
+.step{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted);position:relative}
+.step em{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:2px solid var(--line);font-style:normal;font-size:12px;font-weight:800}
+.step.on{color:var(--ink)} .step.on em{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.now{margin:12px 0 0;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.now b{color:var(--ink)}
+.tabs{display:flex;gap:4px;margin-bottom:8px}
+.tabs button{border:0;background:none;border-radius:7px;padding:5px 10px;font-weight:700;font-size:12.5px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--brand-soft);color:var(--brand)}
+ul.plain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;max-height:176px;overflow-y:auto}
+.rows li{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12.5px}
+.rows li>span:first-child,.rows button{min-width:0;overflow-wrap:anywhere;text-align:left}
+.rows button{border:0;background:none;padding:0;font-weight:600}
+.rows button:hover{color:var(--brand)}
+.log li{font-size:12.5px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px}
+.log time{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:1px}
+.log div{overflow-wrap:anywhere}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl,.bub{position:absolute;left:0;top:0;will-change:transform}
+.lbl{display:inline-flex;align-items:center;gap:5px;background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:1px 8px 1px 6px;font-size:10.5px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(30,50,90,.12)}
+.lbl.ai{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.lbl.sel{outline:2px solid var(--brand);outline-offset:2px}
+.bub{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px 10px 10px 2px;padding:5px 9px;font-size:11.5px;font-weight:600;width:max-content;max-width:190px;box-shadow:var(--shadow);opacity:0;transition:opacity .25s}
+.bub.on{opacity:1}
+.stage.compact .lbl:not(.sel) span{display:none} .stage.compact .lbl:not(.sel){padding:3px}
+#hermes p{margin:8px 0;max-width:68ch}
+#hermes h3{margin:0;font-size:16px}
+pre,textarea{font-family:var(--mono);font-size:11.5px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;margin:8px 0}
+select{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);margin:2px 0 8px}
+.bub.tg{border-color:#2aabee;max-width:240px}
+.tgh{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:#1a86c2;margin-bottom:2px}
+.tgh svg{width:14px;height:14px;flex:none}
+textarea{font-family:var(--font);font-size:13px;width:100%;min-height:84px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink);resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px}
+.msg{font-size:12.5px;color:var(--muted)}
+code{font-family:var(--mono);font-size:12px}
+.fail{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+.ticker{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(620px,calc(100% - 32px));padding:8px 16px;border-radius:999px;font-size:12.5px;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ticker time{font-family:var(--mono);font-size:11px;color:var(--muted);margin-right:8px}
+.app:not(.panels) .stats,.app:not(.panels) .flow,.app:not(.panels) .lists,.app:not(.panels):not(.picked) .detail,.app.panels .ticker{display:none}
+.app:not(.panels) .detail{top:78px}
+@media (min-width:1041px){.app.panels .cam,.app.picked .cam{right:332px}}
+@media (max-width:1040px){
+  .ticker{position:static;transform:none;max-width:none;white-space:normal;border-radius:14px}
+  .app{height:auto;min-height:0;overflow:visible;display:flex;flex-direction:column;gap:12px;padding-inline:16px;padding-block:12px 24px}
+  .top,.stats,.detail,.flow,.lists,#hermes{position:static;width:auto;transform:none;max-height:none}
+  .stats{flex-wrap:wrap} .stat{flex:1 1 100px;min-width:0}
+  .stage{position:relative;inset:auto;height:54vh;min-height:340px;border-radius:14px;border:1px solid var(--line)}
+  .top{order:-1}
+  .cam{top:10px;right:10px}
+}
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Kantor 3D Astacode: AI agent dan tim sedang bekerja. Seret untuk memutar, gulir untuk memperbesar."></canvas>
+    <div id="labels"></div>
+    <div class="cam glass" role="group" aria-label="Kamera">
+      <button type="button" id="zin" aria-label="Perbesar">+</button>
+      <button type="button" id="zout" aria-label="Perkecil">&minus;</button>
+      <button type="button" id="rl" aria-label="Putar kiri">&#8630;</button>
+      <button type="button" id="rr" aria-label="Putar kanan">&#8631;</button>
+      <button type="button" id="home" aria-label="Kembali ke tampilan awal">&#8962;</button>
+    </div>
+  </div>
+
+  <header class="top glass">
+    <div class="logo"><img id="logo" src="data:image/webp;base64,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" alt="Astacode IT Consultant Solution"></div>
+    <h1>Agent Office</h1>
+    <span class="source" id="source"><i class="dot"></i><span id="sourceText">Mode demo</span></span>
+    <button class="btn" id="btnPlay" type="button">Jeda</button>
+    <div class="seg" role="group" aria-label="Kecepatan simulasi">
+      <button type="button" data-speed="1" aria-pressed="true">1x</button>
+      <button type="button" data-speed="2" aria-pressed="false">2x</button>
+      <button type="button" data-speed="4" aria-pressed="false">4x</button>
+    </div>
+    <button class="btn" id="btnPanel" type="button" aria-pressed="false">Panel</button>
+    <button class="btn" id="btnHermes" type="button">Hermes</button>
+    <button class="btn primary" id="btnTask" type="button">Coba kirim DM</button>
+  </header>
+
+  <div class="ticker glass" id="ticker" aria-live="off"></div>
+
+  <div class="stats">
+    <div class="stat glass"><span>Sedang aktif</span><b id="stActive">0</b> <small>dari 15</small></div>
+    <div class="stat glass"><span>Tugas berjalan</span><b id="stRun">0</b></div>
+    <div class="stat glass"><span>Tugas selesai</span><b id="stDone">0</b></div>
+  </div>
+
+  <aside class="detail glass" id="detail" aria-label="Agent terpilih"></aside>
+
+  <section class="flow glass" aria-label="Alur tugas">
+    <div class="flowhead"><b id="flowTitle">Menunggu tugas</b><span id="flowId"></span></div>
+    <div class="steps" id="steps"></div>
+    <p class="now" id="flowNow"></p>
+  </section>
+
+  <section class="lists glass">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="log" aria-selected="true">Aktivitas</button>
+      <button type="button" role="tab" data-tab="tasks" aria-selected="false">Tugas</button>
+      <button type="button" role="tab" data-tab="team" aria-selected="false">Tim</button>
+    </div>
+    <ul class="plain" id="listBody"></ul>
+  </section>
+
+  <section class="glass" id="hermes" hidden>
+    <div class="row" style="margin:0;justify-content:space-between"><h3>Coba kirim DM</h3><button class="btn" id="hermesClose" type="button">Tutup</button></div>
+    <p>Semua orang di kantor diam sampai ada DM. Form ini mensimulasikan satu DM Telegram dari CEO secara lokal: pesan muncul di atas kepala agent, agent bekerja, lalu berjalan ke meja CEO untuk melapor. Tidak ada yang dikirim ke Hermes.</p>
+    <form id="dmForm">
+      <label class="msg" for="dmAgent">Agent tujuan</label>
+      <select id="dmAgent"></select>
+      <label class="msg" for="dmText">Isi DM</label>
+      <textarea id="dmText" spellcheck="false">Tolong riset 10 keyword untuk halaman jasa IT consultant.</textarea>
+      <div class="row"><button class="btn primary" type="submit">Kirim DM</button></div>
+    </form>
+    <p class="msg">Saat tersambung ke Hermes, event asli memakai tipe <code>dm</code>, <code>work</code>, <code>talk</code>, <code>report</code>, dan <code>idle</code>. Rinciannya ada di README paket.</p>
+    <p class="msg" id="ids"></p>
+  </section>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+(() => {
+'use strict';
+/* ============ KONFIGURASI ============ */
+// Alamat API Hermes. Kosong = mode demo. Bisa juga lewat ?api=/api/office di URL atau window.OFFICE_API.
+const DEFAULT_API = '/api/office';
+const $=id=>document.getElementById(id);
+const el=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
+
+/* ============ DATA AGENT (koordinat denah 1000 x 560) ============ */
+const STATUS = {
+  idle:{label:'Idle',v:'--s-idle'}, reading:{label:'Baca DM',v:'--s-discussing'}, working:{label:'Bekerja',v:'--s-working'}, discussing:{label:'Diskusi',v:'--s-discussing'},
+  meeting:{label:'Meeting',v:'--s-meeting'}, review:{label:'Review',v:'--s-review'}, done:{label:'Selesai',v:'--s-done'}, break:{label:'Istirahat',v:'--s-break'}
+};
+const KIND = {leader:'Leader', ai:'AI Agent', human:'Tim tetap'};
+const defs = [
+  ['ceo','CEO','Chief Executive Officer','leader',62,150,'#e2b48f','#2a2320',0,'#3d4250'],
+  ['coo','COO','Chief Operating Officer','leader',160,150,'#c98f66','#1d1a19',1,'#3d4250'],
+  ['cfo','CFO','Chief Financial Officer','leader',258,150,'#eac3a2','#5a4334',0,'#3d4250'],
+  ['orchestrator','Orchestrator','AI Orchestrator','ai',500,445,'#e2b48f','#20242c',0,'#1f4f9a'],
+  ['seo_specialist','SEO Specialist','SEO Specialist','ai',110,300,'#d9a57c','#2a2320',0,'#2f6bc4'],
+  ['blog_writer','Blog Writer','Blog Writer','ai',230,300,'#eac3a2','#6b4a35',1,'#4a86dc'],
+  ['social_media','Social Media','Social Media Specialist','ai',350,300,'#c98f66','#1d1a19',2,'#3577d2'],
+  ['marketing_leader','Marketing Lead','Leader Marketing','ai',650,300,'#e2b48f','#3a2a22',1,'#255aa8'],
+  ['uiux_designer','UI/UX Designer','Designer UI/UX','ai',770,300,'#eac3a2','#1d1a19',2,'#4a86dc'],
+  ['project_manager','Project Manager','Project Manager','ai',890,300,'#d9a57c','#2a2320',0,'#2f6bc4'],
+  ['software_engineer','Software Engineer','Software Engineer','ai',110,475,'#c98f66','#1d1a19',0,'#3577d2'],
+  ['qa_testing','QA Testing','QA Testing','ai',230,475,'#e2b48f','#5a4334',1,'#255aa8'],
+  ['irfan','Irfan','Senior Programmer','human',350,475,'#d9a57c','#1d1a19',0,'#3f8f7a'],
+  ['pram','Pram','Senior Programmer','human',650,475,'#c98f66','#2a2320',0,'#d09a2c'],
+  ['dita','Dita','PMO','human',770,475,'#eac3a2','#2a2320',1,'#d8644f'],
+];
+const agents = {}, list = [];
+defs.forEach((d,i) => {
+  const a = {id:d[0],name:d[1],role:d[2],kind:d[3],home:{x:d[4],y:d[5]},skin:d[6],hair:d[7],hairStyle:d[8],shirt:d[9],
+    x:d[4],y:d[5],heading:Math.PI/2,v:0,sitT:1,wantSit:true,path:[],phase:i,seed:i*1.7,faceId:null,facePt:null,lookId:null,lookT:0,
+    status:'idle',task:'Menunggu tugas',progress:0,ttl:0,bubble:null,pulse:0,links:new Set(),history:[]};
+  agents[a.id]=a; list.push(a);
+});
+const MEET = [[452,112],[500,108],[548,112],[412,150],[588,150],[468,188],[532,188]];
+const PANTRY = [[720,140],[780,165],[845,140],[900,170]];
+let meetI=0, pantryI=0;
+
+/* ============ EVENT BERTIPE DARI HERMES ============
+   dm     : {type:'dm', agent, from:'ceo', message}            DM Telegram masuk ke agent
+   work   : {type:'work', agent, task, progress, message}      agent mengerjakan sesuatu (opsional)
+   talk   : {type:'talk', agent, target, message}              agent mendatangi agent lain (opsional)
+   report : {type:'report', agent, to:'ceo', message}          agent selesai dan melapor ke pemberi tugas
+   idle   : {type:'idle', agent}                               kembali diam
+*/
+const timers=[]; const later=(sec,fn)=>timers.push({t:sec,fn});
+const short=(t,n)=>{ t=String(t||'').replace(/\s+/g,' ').trim(); return t.length>(n||46)?t.slice(0,(n||46)-1)+'…':t; };
+const stampNow=()=>new Date().toLocaleTimeString('id-ID',{hour12:false});
+let dmN=0;
+function handleTyped(ev){
+  const a=agents[ev.agent]; if(!a) throw new Error('Agent tidak dikenal: '+ev.agent);
+  if(ev.type==='dm'){
+    const from=agents[ev.from]||agents.ceo, msg=String(ev.message||''), id=ev.task_id||('DM-'+(++dmN));
+    a.job={id,from:from.id,task:ev.task||short(msg)}; a.sayOnArrive=null;
+    if(from!==a){ packets.push({a:from,t:a,p:0,tg:true}); from.links.add(a.id); a.links.add(from.id); }
+    a.dm={text:msg,head:from.name+' · Telegram',t:8}; a.status='reading'; a.task='Membaca DM dari '+from.name; a.progress=0; a.ttl=0; goHome(a);
+    tasks.unshift({id,title:short(msg,60),stage:'queue',who:a.name,what:'membaca DM'}); if(tasks.length>24) tasks.pop();
+    logs.unshift({time:stampNow(),name:from.name,to:a.name,text:msg}); if(logs.length>50) logs.pop();
+    if(ev.auto!==false) later(3.2,()=>{ if(a.job&&a.job.id===id&&a.status==='reading') handleEvent({agent:a.id,status:'working',task:a.job.task,message:'Siap, saya kerjakan.',progress:5,task_id:id,stage:'doing'}); });
+    uiDirty=true; return;
+  }
+  const job=a.job||{};
+  if(ev.type==='work') return handleEvent({agent:a.id,status:STATUS[ev.status]?ev.status:'working',task:ev.task||job.task,message:ev.message,progress:ev.progress,target:ev.target,task_id:ev.task_id||job.id,stage:'doing',ttl:ev.ttl});
+  if(ev.type==='talk') return handleEvent({agent:a.id,status:'discussing',task:ev.task||('Koordinasi dengan '+((agents[ev.target]||{}).name||'tim')),message:ev.message,target:ev.target,task_id:ev.task_id||job.id,stage:'doing',ttl:ev.ttl||9});
+  if(ev.type==='idle'){ a.job=null; return handleEvent({agent:a.id,status:'idle',task:'Menunggu tugas',progress:0}); }
+  if(ev.type==='report'){
+    const to=agents[ev.to]||agents[job.from]||agents.ceo, id=ev.task_id||job.id; a.job=null; a.dm=null;
+    a.status='discussing'; a.task='Melapor ke '+to.name; a.progress=100; a.ttl=0; a.bubble=null; a.facePt=null; a.faceId=to.id;
+    a.sayOnArrive={text:String(ev.message||'Tugas selesai.'),to:to.id,id};
+    const k=tasks.find(x=>x.id===id); if(k){ k.stage='review'; k.who=a.name; k.what='melapor ke '+to.name; }
+    if(to===a) deliver(a); else goTo(a,{x:to.home.x+58,y:to.home.y+14});
+    uiDirty=true; return;
+  }
+  throw new Error('Tipe event tidak dikenal: '+ev.type);
+}
+function deliver(a){
+  const r=a.sayOnArrive, to=agents[r.to]; a.sayOnArrive=null;
+  a.bubble={text:r.text,head:'Laporan untuk '+to.name,t:7.5}; a.status='done'; a.ttl=8.5;
+  if(to!==a){ packets.push({a,t:to,p:0,tg:true}); to.lookId=a.id; to.lookT=8; later(2.4,()=>{ to.bubble={text:'Laporan diterima, terima kasih.',t:3.5}; }); }
+  const k=tasks.find(x=>x.id===r.id); if(k&&k.stage!=='done'){ k.stage='done'; doneCount++; k.what='laporan terkirim'; }
+  logs.unshift({time:stampNow(),name:a.name,to:to.name,text:'Laporan: '+r.text}); if(logs.length>50) logs.pop();
+  uiDirty=true;
+}
+
+/* ============ EVENT HANDLER (satu pintu untuk mock maupun Hermes) ============ */
+const tasks=[], logs=[], packets=[]; let selected='orchestrator', uiDirty=true, doneCount=0;
+function handleEvent(ev){
+  if(ev && ev.type) return handleTyped(ev);
+  const a = ev && agents[ev.agent];
+  if(!a) throw new Error('Agent tidak dikenal: '+(ev&&ev.agent));
+  const status = STATUS[ev.status] ? ev.status : 'working';
+  a.status=status; if(ev.task) a.task=ev.task;
+  a.progress = typeof ev.progress==='number' ? Math.max(0,Math.min(100,ev.progress)) : (status==='done'?100:a.progress);
+  a.ttl = ev.ttl || 0;
+  if(ev.message) a.bubble={text:String(ev.message),t:4.5};
+  const t = ev.target && agents[ev.target];
+  if(t && t!==a){ a.links.add(t.id); t.links.add(a.id); }
+  a.faceId=null; a.facePt=null;
+  if(status==='discussing' && t){ goTo(a,{x:t.home.x+58,y:t.home.y+14}); a.faceId=t.id; t.lookId=a.id; t.lookT=ev.ttl||8; }
+  else if(status==='meeting'){ const p=MEET[meetI++%MEET.length]; goTo(a,{x:p[0],y:p[1]}); a.facePt={x:500,y:148}; }
+  else if(status==='break'){ const p=PANTRY[pantryI++%PANTRY.length]; goTo(a,{x:p[0],y:p[1]}); a.facePt={x:p[0]-40+Math.random()*80,y:p[1]+120}; }
+  else goHome(a);
+  if(t && t!==a && status!=='discussing'){ packets.push({a,t,p:0}); t.lookId=a.id; t.lookT=2.5; }
+  const stamp=new Date(ev.timestamp||Date.now());
+  const text = ev.message || (STATUS[status].label+': '+a.task);
+  a.history.unshift(a.task); a.history.length=Math.min(a.history.length,4);
+  logs.unshift({time:stamp.toLocaleTimeString('id-ID',{hour12:false}),name:a.name,text,to:t?t.name:''}); if(logs.length>50) logs.pop();
+  if(ev.task_id){ let k=tasks.find(x=>x.id===ev.task_id);
+    if(!k){ k={id:ev.task_id,title:ev.task_title||ev.task||ev.task_id,stage:'queue'}; tasks.unshift(k); if(tasks.length>24) tasks.pop(); }
+    if(ev.stage){ if(ev.stage==='done'&&k.stage!=='done') doneCount++; k.stage=ev.stage; }
+    k.who=a.name; k.what=a.task; }
+  uiDirty=true;
+}
+
+/* ============ GERAK KARAKTER: kemudi halus, bukan lompat antar titik ============ */
+const side = a => ({x:a.home.x+60,y:a.home.y+16});
+function route(p,q){
+  if(Math.hypot(p.x-q.x,p.y-q.y)<70 || (p.y<225&&q.y<225&&Math.abs(p.x-q.x)<280)) return [q];
+  const cy=(p.y<225||q.y<225)?232:375;
+  return [{x:p.x,y:cy},{x:q.x,y:cy},q];
+}
+function goTo(a,q){ const s=side(a); a.path = a.sitT>.5 ? [s,...route(s,q)] : route({x:a.x,y:a.y},q); a.wantSit=false; }
+function goHome(a){ if(a.wantSit) return; const s=side(a); a.path=[...route({x:a.x,y:a.y},s),{x:a.home.x,y:a.home.y}]; a.wantSit=true; }
+const wrap=r=>{ while(r>Math.PI) r-=2*Math.PI; while(r<-Math.PI) r+=2*Math.PI; return r; };
+const turn=(a,to,rate,dt)=>{ const d=wrap(to-a.heading); a.heading+=Math.max(-rate*dt,Math.min(rate*dt,d)); return d; };
+function stepAgents(dt){
+  for(let i=timers.length-1;i>=0;i--) if((timers[i].t-=dt)<=0){ const f=timers[i].fn; timers.splice(i,1); f(); }
+  for(const a of list){
+    if(a.dm && (a.dm.t-=dt)<=0) a.dm=null;
+    if(a.bubble && (a.bubble.t-=dt)<=0) a.bubble=null;
+    if(a.pulse>0) a.pulse-=dt*1.5;
+    if(a.lookT>0 && (a.lookT-=dt)<=0) a.lookId=null;
+    if(a.ttl>0 && (a.ttl-=dt)<=0){ if(a.job){ a.status='working'; a.task=a.job.task; } else { a.status='idle'; a.task='Menunggu tugas'; a.progress=0; } a.faceId=a.facePt=null; goHome(a); uiDirty=true; }
+    if((a.status==='working'||a.status==='review') && a.progress<96) a.progress+=dt*2;
+    if(a.path.length){
+      if(a.sitT>.02){ a.sitT=Math.max(0,a.sitT-dt*2.4); a.v=0; continue; }   // berdiri dulu dari kursi
+      const q=a.path[0], dx=q.x-a.x, dy=q.y-a.y, d=Math.hypot(dx,dy), fin=a.path.length===1;
+      const diff=turn(a,Math.atan2(dy,dx),5.5,dt);
+      const tv=52*(Math.abs(diff)>1.1?.2:1)*(fin?Math.min(1,d/22+.18):1);
+      a.v+=(tv-a.v)*Math.min(1,dt*4.5);
+      a.x+=Math.cos(a.heading)*a.v*dt; a.y+=Math.sin(a.heading)*a.v*dt; a.phase+=a.v*dt*.21;
+      if(fin ? (d<2.5||(d<7&&Math.abs(diff)>1)) : d<15){ if(fin){ a.x=q.x; a.y=q.y; } a.path.shift(); if(fin&&a.sayOnArrive) deliver(a); }
+    } else {
+      a.v+=(0-a.v)*Math.min(1,dt*8);
+      if(a.wantSit){ turn(a,Math.PI/2,5,dt); if(Math.abs(wrap(Math.PI/2-a.heading))<.5) a.sitT=Math.min(1,a.sitT+dt*2); }
+      else { const f=a.faceId?agents[a.faceId]:a.facePt; if(f) turn(a,Math.atan2(f.y-a.y,f.x-a.x),3.5,dt); }
+    }
+  }
+  for(const p of packets) p.p+=dt*.95;
+  for(let i=packets.length-1;i>=0;i--) if(packets[i].p>=1){ packets[i].t.pulse=1; if(packets[i].m) scene.remove(packets[i].m); packets.splice(i,1); }
+}
+
+/* ============ ADEGAN 3D ============ */
+const stage=$('stage'), cv=$('cv');
+if(!window.THREE){ stage.append(el('div','fail','Pustaka 3D gagal dimuat. Muat ulang halaman ini.')); return; }
+let renderer;
+try{ renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true}); }
+catch(e){ stage.append(el('div','fail','Perangkat ini tidak mendukung tampilan 3D (WebGL).')); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding; renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const camera=new THREE.OrthographicCamera(-10,10,10,-10,.1,200);
+const CAM0=new THREE.Vector3(35.5,30,38), TGT0=new THREE.Vector3(1.5,0,2);
+camera.position.copy(CAM0);
+const controls=new THREE.OrbitControls(camera,cv);
+controls.target.copy(TGT0); controls.enableDamping=true; controls.dampingFactor=.08; controls.minPolarAngle=.45; controls.maxPolarAngle=1.25; controls.minZoom=.7; controls.maxZoom=4; controls.update();
+let lastUser=-99, paused=false;
+const hemi=new THREE.HemisphereLight(0xffffff,0xcfd9ee,.6); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,.62); sun.position.set(14,26,12); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-22,right:22,top:22,bottom:-22,near:1,far:70}); sun.shadow.bias=-.0006; sun.shadow.radius=5; scene.add(sun);
+
+// palet material: [terang, gelap]
+const TH={plank:['#e2e7ef','#1a2231'],floor:['#eef1f6','#1e2636'],slab:['#c9d1de','#141a26'],rugA:['#d6e3f8','#22314f'],rugB:['#e3e8f0','#262e40'],rugC:['#dfe9f7','#322d27'],rugD:['#ffffff','#202b42'],
+  wall:['#ffffff','#2b3447'],trim:['#2f6bc4','#3f7bd6'],white:['#ffffff','#c5cedd'],wood:['#e9edf3','#b9a88d'],dark:['#2b2d33','#161a22'],grey:['#bcc4d0','#4a5366'],
+  chair:['#434a5a','#11151c'],leaf:['#3d9459','#3d8f60'],pot:['#ffffff','#aeb8c9'],brand:['#2f6bc4','#4a86dc'],yellow:['#e9b949','#d6a53a'],coral:['#de6b55','#cf5f4b'],pants:['#353b4a','#565f73'],shoe:['#1f232b','#0c0e13']};
+const mats={}; for(const k in TH) mats[k]=new THREE.MeshStandardMaterial({roughness:.82,metalness:0});
+const glassM=new THREE.MeshStandardMaterial({color:0x8fbcf7,transparent:true,opacity:.2,roughness:.1,side:THREE.DoubleSide,depthWrite:false});
+const glowM=new THREE.MeshBasicMaterial({color:0x4d93f5});
+const glowSoft=new THREE.MeshBasicMaterial({color:0x4d93f5,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false});
+const winM=new THREE.MeshBasicMaterial({color:0xcfe3ff});
+let cssVars={}, dark=false;
+function readTheme(){ const t=document.documentElement.dataset.theme; dark=false;  /* tampilan dikunci terang */
+  for(const k in TH) mats[k].color.set(TH[k][dark?1:0]);
+  hemi.intensity=.58; hemi.groundColor.set('#c3ccdc'); hemi.color.set('#ffffff'); sun.intensity=.72; sun.color.set('#ffffff'); glassM.opacity=dark?.2:.28; winM.color.set(dark?'#31507f':'#cfe3ff');
+  const cs=getComputedStyle(document.documentElement); for(const k in STATUS) cssVars[k]=cs.getPropertyValue(STATUS[k].v).trim()||'#888'; }
+readTheme();
+
+const K=.03, wx=x=>(x-500)*K, wz=y=>(y-290)*K;
+const sh=o=>{o.castShadow=true;o.receiveShadow=true;return o;};
+function box(w,h,d,m,x,y,z,p){ const o=sh(new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)); o.position.set(x,y,z); (p||scene).add(o); return o; }
+function cyl(rt,rb,h,m,x,y,z,p,seg){ const o=sh(new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||16),m)); o.position.set(x,y,z); (p||scene).add(o); return o; }
+function sph(r,m,x,y,z,p){ const o=sh(new THREE.Mesh(new THREE.SphereGeometry(r,18,14),m)); o.position.set(x,y,z); (p||scene).add(o); return o; }
+function grp(x,y,z,p){ const g=new THREE.Group(); g.position.set(x,y,z); (p||scene).add(g); return g; }
+const bars=[], stickies=[];
+/* ---- ruangan ---- */
+(function buildOffice(){
+  const FX=31.6, FZ=18.6, cz=-.5;
+  box(FX,.4,FZ,mats.slab,0,-.25,cz).castShadow=false; box(FX,.06,FZ,mats.floor,0,-.02,cz).castShadow=false; for(let z=cz-FZ/2+.8;z<cz+FZ/2;z+=.8) box(FX,.062,.025,mats.plank,0,-.02,z).castShadow=false;
+  const rug=(x0,y0,x1,y1,m)=>{ const r=box((x1-x0)*K,.03,(y1-y0)*K,m,wx((x0+x1)/2),.02,wz((y0+y1)/2)); r.castShadow=false; };
+  rug(14,36,330,214,mats.rugA); rug(350,36,650,214,mats.rugB); rug(670,36,986,214,mats.rugC); rug(40,262,420,348,mats.rugD); rug(580,262,960,348,mats.rugD); rug(40,436,420,522,mats.rugD); rug(580,436,840,522,mats.rugD);
+  const bz=cz-FZ/2+.1, lx=-FX/2+.1;
+  box(FX,3.8,.2,mats.wall,0,1.9,bz); box(.2,3.8,FZ,mats.wall,lx,1.9,cz);
+  box(FX,.18,.24,mats.trim,0,.09,bz+.02); box(.24,.18,FZ,mats.trim,lx+.02,.09,cz);
+  for(let i=0;i<5;i++){ const w=new THREE.Mesh(new THREE.BoxGeometry(.06,1.7,2.3),winM); w.position.set(lx+.12,2,cz-6.6+i*3.3); scene.add(w); }
+  // logo di dinding
+  const img=$('logo'), lc=document.createElement('canvas'), tex=new THREE.Texture(lc); tex.encoding=THREE.sRGBEncoding;
+  const setTex=()=>{ lc.width=img.naturalWidth*3; lc.height=img.naturalHeight*3; const c=lc.getContext('2d'); c.drawImage(img,0,0,lc.width,lc.height);
+    try{ const d=c.getImageData(0,0,lc.width,lc.height), q=d.data; for(let i=0;i<q.length;i+=4){ const m=Math.min(q[i],q[i+1],q[i+2]); if(m>200) q[i+3]=Math.min(q[i+3],Math.max(0,(255-m)*4.6)); } c.putImageData(d,0,0); }catch(e){}
+    tex.needsUpdate=true; };
+  if(img.complete&&img.naturalWidth) setTex(); else img.addEventListener('load',setTex);
+  const lp=new THREE.Mesh(new THREE.PlaneGeometry(4.6,4.6*83/300),new THREE.MeshBasicMaterial({map:tex,transparent:true})); lp.position.set(0,2.9,bz+.19); scene.add(lp);
+  // partisi kaca
+  for(const x of [340,660]){ const g=new THREE.Mesh(new THREE.BoxGeometry(.06,2.5,5.6),glassM); g.position.set(wx(x),1.25,wz(120)); scene.add(g); box(.1,.08,5.6,mats.grey,wx(x),2.52,wz(120)); box(.12,2.5,.12,mats.grey,wx(x),1.25,wz(213)); }
+  // ruang meeting
+  const tb=cyl(1,1,.08,mats.white,wx(500),.76,wz(148),null,36); tb.scale.set(1.9,1,1); cyl(.14,.4,.74,mats.grey,wx(500),.37,wz(148));
+  box(.5,.03,.34,mats.dark,wx(500),.82,wz(148));
+  box(3.2,1.3,.1,mats.dark,wx(500),1.2,bz+.16); for(let i=0;i<7;i++){ const b=new THREE.Mesh(new THREE.BoxGeometry(.26,1,.02),glowM); b.position.set(wx(500)-1.2+i*.4,1,bz+.23); scene.add(b); bars.push(b); }
+  // pantry
+  box(7.4,.9,.8,mats.white,wx(820),.45,bz+.55); box(7.5,.06,.9,mats.wood,wx(820),.93,bz+.55);
+  box(.5,.6,.45,mats.dark,wx(740),1.26,bz+.5); const led=new THREE.Mesh(new THREE.BoxGeometry(.12,.06,.02),glowM); led.position.set(wx(740),1.36,bz+.74); scene.add(led);
+  for(let i=0;i<4;i++) cyl(.07,.06,.14,i%2?mats.brand:mats.white,wx(790)+i*.28,1.03,bz+.6);
+  box(.9,2,.8,mats.grey,wx(960),1,bz+.55);
+  const sx=wx(975), sz=wz(150); box(.9,.42,3,mats.brand,sx,.21,sz); box(.3,.9,3,mats.brand,sx+.32,.45,sz); box(.9,.6,.3,mats.brand,sx,.3,sz-1.5); box(.9,.6,.3,mats.brand,sx,.3,sz+1.5);
+  cyl(.5,.5,.06,mats.wood,wx(935),.42,wz(118),null,24); cyl(.06,.2,.4,mats.grey,wx(935),.2,wz(118));
+  const bean=(x,y,m)=>{ const b=sph(.55,m,wx(x),.32,wz(y)); b.scale.set(1.1,.62,1.1); const c=sph(.4,m,wx(x),.55,wz(y)-.25); c.scale.set(1.1,.7,.7); };
+  bean(468,300,mats.brand); bean(532,306,mats.yellow); bean(470,530,mats.dark); bean(535,534,mats.brand); bean(690,196,mats.coral);
+  const plant=(x,y,s)=>{ const X=wx(x),Z=wz(y); cyl(.3,.22,.5,mats.pot,X,.25,Z); cyl(.04,.04,.7,mats.wood,X,.8,Z,null,8); sph(.5*s,mats.leaf,X,1.35,Z); sph(.36*s,mats.leaf,X+.3,1.05,Z+.15); sph(.34*s,mats.leaf,X-.28,1.1,Z-.1); };
+  plant(22,236,1); plant(978,250,1); plant(22,548,1.1); plant(978,548,1.1); plant(648,205,.9); plant(352,205,.9); plant(960,470,.9);
+  box(.5,1.8,3,mats.wood,lx+.4,.9,wz(385)); for(let i=0;i<3;i++) for(let j=0;j<5;j++) box(.3,.36,.16,[mats.brand,mats.white,mats.dark,mats.yellow,mats.coral][(i+j*2)%5],lx+.52,.42+i*.55,wz(385)-1.1+j*.5);
+  // papan kanban
+  const kx=wx(900), kz=wz(418); box(2.6,1.5,.06,mats.white,kx,1.55,kz); box(2.7,.06,.08,mats.grey,kx,2.32,kz); box(.07,1,.07,mats.grey,kx-1.1,.4,kz); box(.07,1,.07,mats.grey,kx+1.1,.4,kz);
+  for(let c=0;c<4;c++) for(let r=0;r<4;r++){ const s=new THREE.Mesh(new THREE.BoxGeometry(.42,.24,.02),new THREE.MeshBasicMaterial()); s.position.set(kx-.93+c*.62,2.05-r*.32,kz+.045); s.visible=false; scene.add(s); stickies.push({m:s,c,r}); }
+})();
+
+/* ---- meja kerja ---- */
+const pickables=[];
+function buildDesk(a){ const g=grp(wx(a.home.x),0,wz(a.home.y)); g.userData.agent=a.id; pickables.push(g);
+  const ai=a.kind==='ai', ld=a.kind==='leader';
+  cyl(.27,.27,.07,mats.chair,0,.45,0,g,20); cyl(.04,.04,.4,mats.grey,0,.24,0,g,8); cyl(.27,.27,.04,mats.grey,0,.04,0,g,5); box(.5,.55,.07,mats.chair,0,.82,-.28,g);
+  box(2.3,.07,1,ld?mats.dark:ai?mats.white:mats.wood,0,.76,.8,g); box(2.2,.5,.05,ai?mats.brand:ld?mats.dark:mats.white,0,.48,1.22,g);
+  box(.06,.74,.9,mats.grey,-1.08,.37,.8,g); box(.06,.74,.9,mats.grey,1.08,.37,.8,g);
+  if(ld) box(2.2,.06,.07,mats.brand,0,.7,1.23,g);
+  box(.5,.025,.34,mats.grey,0,.81,.64,g); const scr=box(.5,.34,.025,mats.dark,0,.97,.84,g); scr.rotation.x=.25;
+  const d=new THREE.Mesh(new THREE.CircleGeometry(.045,16),new THREE.MeshBasicMaterial({color:0x4d93f5})); d.position.set(0,.98,.86); d.rotation.x=.25; g.add(d); a.led=d;
+  cyl(.06,.05,.13,ai?mats.brand:mats.white,.75,.86,.72,g); box(.4,.02,.3,mats.white,-.7,.8,.78,g);
+}
+list.forEach(buildDesk);
+// pusat orchestrator
+const hub=grp(wx(500),0,wz(445));
+{ const r=cyl(2.7,2.7,.03,mats.rugA,0,.02,.3,hub,48); r.castShadow=false;
+  const r1=new THREE.Mesh(new THREE.RingGeometry(2.25,2.33,64,1,0,5),glowSoft); r1.rotation.x=-Math.PI/2; r1.position.set(0,.06,.3); hub.add(r1); hub.userData.r1=r1;
+  const r2=new THREE.Mesh(new THREE.RingGeometry(2.55,2.6,64,1,0,4),glowSoft); r2.rotation.x=-Math.PI/2; r2.position.set(0,.06,.3); hub.add(r2); hub.userData.r2=r2;
+  cyl(.28,.36,.9,mats.white,-1.75,.45,.5,hub); const ico=new THREE.Mesh(new THREE.IcosahedronGeometry(.32,0),new THREE.MeshBasicMaterial({color:0x4d93f5,wireframe:true})); ico.position.set(-1.75,1.45,.5); hub.add(ico); hub.userData.ico=ico;
+  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.14,0),glowM); ico.add(core); }
+const selRing=new THREE.Mesh(new THREE.RingGeometry(.44,.52,40),glowM); selRing.rotation.x=-Math.PI/2; scene.add(selRing);
+
+/* ---- karakter ---- */
+function buildPerson(a){
+  const m=c=>new THREE.MeshStandardMaterial({color:c,roughness:.8});
+  const mShirt=m(a.shirt), mSkin=m(a.skin), mHair=m(a.hair);
+  const g=grp(0,0,0); g.userData.agent=a.id; g.scale.setScalar(.96); pickables.push(g);
+  const body=grp(0,.92,0,g), j={};
+  const torso=cyl(.17,.15,.52,mShirt,0,.3,0,body); torso.scale.set(1.25,1,.8);
+  const shd=sph(.17,mShirt,0,.55,0,body); shd.scale.set(1.3,.45,.82);
+  const pel=sph(.155,mats.pants,0,.04,0,body); pel.scale.set(1.22,.7,.85);
+  cyl(.05,.06,.1,mSkin,0,.65,0,body,10);
+  if(a.kind==='leader'){ box(.08,.3,.02,mats.white,0,.38,.125,body); box(.035,.24,.02,mats.brand,0,.38,.135,body); }
+  if(a.kind==='human'){ box(.11,.14,.015,mats.white,0,.26,.13,body); }
+  const head=grp(0,.8,0,body); const sk=sph(.15,mSkin,0,0,0,head); sk.scale.set(.95,1.05,.97);
+  const cap=sh(new THREE.Mesh(new THREE.SphereGeometry(.162,18,12,0,Math.PI*2,0,Math.PI*.56),mHair)); cap.rotation.x=-.32; cap.position.y=.012; head.add(cap);
+  if(a.hairStyle===1){ const l=sph(.16,mHair,0,-.1,-.06,head); l.scale.set(.9,1.25,.55); l.position.z=-.09; }
+  if(a.hairStyle===2) sph(.065,mHair,0,.15,-.08,head);
+  const eyeM=new THREE.MeshBasicMaterial({color:0x1d1a19}); for(const s of [-1,1]){ const e=new THREE.Mesh(new THREE.SphereGeometry(.017,8,8),eyeM); e.position.set(s*.055,.005,.138); head.add(e); }
+  if(a.kind==='ai'){ const h=new THREE.Mesh(new THREE.TorusGeometry(.13,.013,8,28),glowM); h.rotation.x=Math.PI/2; h.position.y=.3; head.add(h); a.halo=h;
+    const b=new THREE.Mesh(new THREE.CircleGeometry(.045,16),glowM); b.position.set(.09,.42,.135); body.add(b); }
+  for(const s of [-1,1]){ const n=s<0?'L':'R';
+    const shJ=grp(s*.255,.5,0,body); cyl(.052,.048,.28,mShirt,0,-.14,0,shJ,10); const elJ=grp(0,-.28,0,shJ); cyl(.046,.042,.26,mShirt,0,-.13,0,elJ,10); sph(.05,mSkin,0,-.28,0,elJ);
+    if(s>0){ const cup=cyl(.045,.038,.1,mats.white,0,-.3,.07,elJ,12); cup.visible=false; a.cup=cup; }
+    const hipJ=grp(s*.09,0,0,body); cyl(.078,.068,.42,mats.pants,0,-.21,0,hipJ,10); const knJ=grp(0,-.42,0,hipJ); cyl(.064,.055,.4,mats.pants,0,-.2,0,knJ,10); box(.11,.08,.25,mats.shoe,0,-.43,.05,knJ);
+    j['sh'+n]=shJ; j['el'+n]=elJ; j['hip'+n]=hipJ; j['kn'+n]=knJ; }
+  a.g=g; a.body=body; a.head=head; a.torso=torso; a.j=j;
+}
+list.forEach(buildPerson);
+let T=0;
+const L=(p,q,t)=>p+(q-p)*t;
+function pose(a,k){
+  const g=a.g, s=a.sitT, amp=Math.min(1,a.v/40), sn=Math.sin(a.phase), still=!a.path.length;
+  g.position.set(wx(a.x),0,wz(a.y)); g.rotation.y=Math.PI/2-a.heading;
+  const typing=s>.9&&(a.status==='working'||a.status==='review'), talking=!!a.bubble&&!typing, reading=!!a.dm&&s>.9;
+  let hipL=-sn*.62*amp, hipR=sn*.62*amp, knL=(.5+.5*Math.sin(a.phase-1.3))*1.05*amp, knR=(.5-.5*Math.sin(a.phase-1.3))*1.05*amp;
+  let shL=sn*.5*amp, shR=-sn*.5*amp, elL=-.12-.38*amp, elR=-.12-.38*amp;
+  hipL=L(hipL,-1.5,s); hipR=L(hipR,-1.5,s); knL=L(knL,1.5,s); knR=L(knR,1.5,s);
+  if(typing){ shL=shR=-.62; elL=-1.08+Math.sin(T*17+a.seed)*.08; elR=-1.08+Math.sin(T*14+a.seed+2)*.08; }
+  else if(s>.5){ shL=shR=-.3; elL=elR=-1.0; }
+  if(talking){ shR=-.85+Math.sin(T*3.7+a.seed)*.28; elR=-1.35+Math.sin(T*5.1+a.seed)*.3; if(s<.5) { shL=-.25+Math.sin(T*2.9+a.seed)*.15; elL=-.7; } }
+  const brk=a.status==='break'&&still&&s<.1; a.cup.visible=a.status==='break'&&s<.1;
+  if(a.status==='break'&&s<.1){ const sip=brk&&Math.sin(T*.8+a.seed)>.55; shR=sip?-1.05:-.45; elR=sip?-1.95:-1.25; }
+  if(a.status==='meeting'&&still&&!talking){ shL=-.1; elL=-1.5; shR=-.1; elR=-1.5; }
+  if(reading){ shR=-.95; elR=-1.7; }
+  const J=a.j, set=(o,v)=>{ o.rotation.x+=(v-o.rotation.x)*k; };
+  set(J.hipL,hipL); set(J.hipR,hipR); set(J.knL,knL); set(J.knR,knR); set(J.shL,shL); set(J.shR,shR); set(J.elL,elL); set(J.elR,elR);
+  const b=a.body, br=Math.sin(T*1.6+a.seed);
+  b.position.y+=((L(.92,.53,s)+Math.abs(sn)*.04*amp+br*.004)-b.position.y)*Math.min(1,k*1.5);
+  b.rotation.x+=((.08*amp+(typing?.1:0)-(s>.5&&!typing&&a.status==='idle'?.08:0))-b.rotation.x)*k;
+  b.rotation.y=sn*.1*amp; b.rotation.z=Math.sin(T*.6+a.seed)*.025*(1-amp)*(1-s);
+  a.torso.scale.y=1+br*.012;
+  // kepala: menoleh ke lawan bicara, atau melihat sekeliling
+  let yaw=Math.sin(T*.37+a.seed)*.3*(typing?.25:1)+Math.sin(T*.11+a.seed*2)*.2, pitch=reading?.34:typing?.24:.03;
+  const o=agents[a.lookId||(still?a.faceId:null)];
+  if(o){ const ang=Math.atan2(o.y-a.y,o.x-a.x); yaw=Math.max(-1.15,Math.min(1.15,wrap(a.heading-ang))); pitch=0; }
+  if(talking) pitch+=Math.sin(T*6+a.seed)*.05;
+  a.head.rotation.y+=(yaw-a.head.rotation.y)*k*.5; a.head.rotation.x+=(pitch-a.head.rotation.x)*k*.5;
+  if(a.halo){ a.halo.position.y=.3+Math.sin(T*2+a.seed)*.015; a.halo.scale.setScalar(1+a.pulse*.5); }
+  a.led.material.color.set(s>.9&&a.status!=='idle'?0x4d93f5:0x6b7483);
+}
+
+/* ---- label di atas kepala ---- */
+const TG_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#2aabee"/><path fill="#fff" d="M5.2 11.7l11.3-4.4c.5-.2 1 .1.8.9l-1.9 9c-.1.6-.5.8-1 .5l-2.9-2.1-1.4 1.3c-.2.2-.3.3-.6.3l.2-3 5.4-4.9c.2-.2 0-.3-.3-.1l-6.7 4.2-2.9-.9c-.6-.2-.6-.6.1-.9z"/></svg>';
+const tgM=new THREE.MeshBasicMaterial({color:0x2aabee});
+const labels=$('labels'), V=new THREE.Vector3();
+list.forEach(a=>{ const l=el('div','lbl'+(a.kind==='ai'?' ai':'')); const d=el('i','dot'); l.append(d,el('span',null,a.name)); a.lbl=l; a.ldot=d; const b=el('div','bub'); a.bub=b; labels.append(l,b); });
+function updateLabels(){ const w=stage.clientWidth,h=stage.clientHeight;
+  for(const a of list){ const y=(a.body.position.y+1.08)*.96;
+    V.set(a.g.position.x,y+.12,a.g.position.z).project(camera); const px=(V.x*.5+.5)*w, py=(-V.y*.5+.5)*h;
+    a.lbl.style.transform='translate('+px.toFixed(1)+'px,'+py.toFixed(1)+'px) translate(-50%,-100%)';
+    a.lbl.classList.toggle('sel',a.id===selected); a.ldot.style.background=a.kind==='ai'&&a.status==='working'?'#fff':cssVars[a.status];
+    const bb=a.dm&&a.dm.t>.3?a.dm:(a.bubble&&a.bubble.t>.3?a.bubble:null), on=!!bb, key=bb?(bb.head||'')+'|'+bb.text:'';
+    if(on&&a.bub.dataset.k!==key){ a.bub.dataset.k=key; a.bub.textContent=''; if(bb.head){ const h=el('div','tgh'); h.innerHTML=TG_SVG; h.append(el('span',null,bb.head)); a.bub.append(h); } a.bub.append(el('div',null,bb.text)); a.bub.classList.toggle('tg',!!bb.head); }
+    a.bub.classList.toggle('on',on); if(on||a.bub.style.transform) a.bub.style.transform='translate('+Math.max(4,Math.min(w-196,px+6)).toFixed(1)+'px,'+Math.max(py-24,(on?80+a.bub.offsetHeight:0)).toFixed(1)+'px) translate(0,-100%)'; a.bub.style.zIndex=on?2:0; } }
+
+/* ---- kamera ---- */
+const app=document.querySelector('.app'); const Y=new THREE.Vector3(0,1,0); let rotQ=0, focus=null, focusT=0;
+function fit(){ const w=stage.clientWidth,h=stage.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); const asp=w/h, hh=Math.max(11.8,17.5/asp);
+  camera.left=-hh*asp; camera.right=hh*asp; camera.top=hh; camera.bottom=-hh; camera.updateProjectionMatrix(); stage.classList.toggle('compact',w<720); }
+function orbit(ang){ const off=camera.position.clone().sub(controls.target).applyAxisAngle(Y,ang); camera.position.copy(controls.target).add(off); }
+const touch=()=>{ lastUser=performance.now()/1000; };
+$('zin').onclick=()=>{ camera.zoom=Math.min(4,camera.zoom*1.25); camera.updateProjectionMatrix(); touch(); };
+$('zout').onclick=()=>{ camera.zoom=Math.max(.7,camera.zoom/1.25); camera.updateProjectionMatrix(); touch(); };
+$('rl').onclick=()=>{ rotQ-=Math.PI/6; touch(); }; $('rr').onclick=()=>{ rotQ+=Math.PI/6; touch(); };
+$('home').onclick=()=>{ camera.position.copy(CAM0); controls.target.copy(TGT0); camera.zoom=1; camera.updateProjectionMatrix(); rotQ=0; focus=null; lastUser=-99; };
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function stepCamera(raw,now){
+  if(Math.abs(rotQ)>.001){ const s=rotQ*Math.min(1,raw*6); orbit(s); rotQ-=s; }
+  else if(!reduce&&!paused&&now-lastUser>8) orbit(Math.cos(now*.1)*.012*raw);   // ayunan kamera pelan saat tidak disentuh
+  if(focus){ focusT-=raw; V.set(focus.g.position.x,.6,focus.g.position.z).sub(controls.target).multiplyScalar(Math.min(1,raw*3)); controls.target.add(V); camera.position.add(V); if(focusT<=0) focus=null; }
+  controls.update();
+}
+function select(id,doFocus){ selected=id; uiDirty=true; app.classList.add('picked'); if(doFocus){ focus=agents[id]; focusT=1.6; touch(); } }
+// klik untuk memilih
+const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let down=null;
+function pick(e){ const r=cv.getBoundingClientRect(); mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1); ray.setFromCamera(mouse,camera);
+  const hit=ray.intersectObjects(pickables,true)[0]; if(!hit) return null; let o=hit.object; while(o&&!o.userData.agent) o=o.parent; return o?o.userData.agent:null; }
+cv.addEventListener('pointerdown',e=>{ down=[e.clientX,e.clientY]; });
+cv.addEventListener('pointerup',e=>{ if(down&&Math.hypot(e.clientX-down[0],e.clientY-down[1])<6){ const id=pick(e); if(id) select(id,false); else app.classList.remove('picked'); } down=null; });
+cv.addEventListener('pointermove',e=>{ if(e.pointerType==='mouse'&&!e.buttons) cv.style.cursor=pick(e)?'pointer':'grab'; });
+
+function stepScene(dt){
+  const u=hub.userData, busy=agents.orchestrator.status!=='idle';
+  u.r1.rotation.z+=dt*(busy?.9:.3); u.r2.rotation.z-=dt*(busy?.6:.2); u.ico.rotation.y+=dt*(busy?2:.6); u.ico.rotation.x+=dt*.4; u.ico.position.y=1.45+Math.sin(T*1.5)*.06;
+  bars.forEach((b,i)=>{ const hgt=.25+.35*(1+Math.sin(T*.8+i*1.3)); b.scale.y=hgt; b.position.y=.7+hgt/2; });
+  const sa=agents[selected]; selRing.position.set(sa.g.position.x,.07,sa.g.position.z); selRing.scale.setScalar(1+Math.sin(T*3)*.06);
+  for(const p of packets){ if(!p.m){ p.m=new THREE.Mesh(new THREE.SphereGeometry(p.tg?.15:.11,12,12),p.tg?tgM:glowM); p.m.add(new THREE.Mesh(new THREE.SphereGeometry(.22,12,12),glowSoft)); scene.add(p.m); }
+    const A=p.a.g.position, B=p.t.g.position, e=p.p*p.p*(3-2*p.p); p.m.position.set(L(A.x,B.x,e),1.3+Math.sin(Math.PI*e)*1.7,L(A.z,B.z,e)); }
+  const st=['queue','doing','review','done'], col=[cssVars.idle,cssVars.working,cssVars.review,cssVars.done], n=st.map(s=>tasks.filter(t=>t.stage===s).length);
+  for(const s of stickies){ s.m.visible=s.r<n[s.c]; s.m.material.color.set(col[s.c]); }
+}
+
+/* ============ PANEL UI ============ */
+const pill=st=>{ const p=el('span','pill'); const d=el('i','dot'); d.style.background='var('+STATUS[st].v+')'; p.append(d,STATUS[st].label); return p; };
+const STAGES=[['queue','Antre','idle'],['doing','Dikerjakan','working'],['review','Review','review'],['done','Selesai','done']];
+$('ids').textContent='Id agent: '+list.map(a=>a.id).join(', ')+'.';
+STAGES.forEach((s,i)=>{ const d=el('div','step'); d.append(el('em',null,i+1),s[1]); $('steps').append(d); });
+const fill=el('i','fill'); $('steps').append(fill);
+let tab='log';
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; document.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',x===b)); uiDirty=true; });
+function renderUI(){
+  const a=agents[selected], d=$('detail'); d.textContent='';
+  const who=el('div','who'), av=el('div','avatar',a.kind==='ai'?'AI':a.name.slice(0,2).toUpperCase()); av.style.background=a.shirt;
+  const nm=el('div'); nm.append(el('b',null,a.name),el('small',null,a.role+' · '+KIND[a.kind])); who.append(av,nm);
+  const bar=el('div','bar'), bf=el('i'); bf.style.width=Math.round(a.progress)+'%'; bar.append(bf);
+  const dl=el('dl','kv'); const add=(k,v)=>{ const r=el('div'), dd=el('dd'); dd.append(v); r.append(el('dt',null,k),dd); dl.append(r); };
+  add('Status',pill(a.status)); add('Tugas',a.task); add('Progres',Math.round(a.progress)+'%'); add('Sebelumnya',a.history[1]||'Belum ada');
+  const ch=el('div','chips'); [...a.links].slice(0,8).forEach(id=>ch.append(el('span',null,agents[id].name)));
+  d.append(who,bar,dl,ch);
+  $('stActive').textContent=list.filter(x=>x.status!=='idle'&&x.status!=='break').length;
+  $('stRun').textContent=tasks.filter(t=>t.stage!=='done').length; $('stDone').textContent=doneCount;
+  const f=tasks.find(t=>t.stage!=='done')||tasks[0];
+  if(f){ const i=STAGES.findIndex(s=>s[0]===f.stage); $('flowTitle').textContent=f.title; $('flowId').textContent=f.id;
+    [...$('steps').querySelectorAll('.step')].forEach((s,n)=>s.classList.toggle('on',n<=i)); fill.style.width=(i/3*75)+'%';
+    const n=$('flowNow'); n.textContent=''; n.append('Sekarang: ',el('b',null,f.who||''),' sedang '+(f.what||'').toLowerCase()+'.'); }
+  if(logs[0]){ const tk=$('ticker'); tk.textContent=''; tk.append(el('time',null,logs[0].time),el('b',null,logs[0].name+(logs[0].to?' → '+logs[0].to:'')+': '),logs[0].text); }
+  const ul=$('listBody'); ul.textContent=''; ul.className='plain '+(tab==='log'?'log':'rows');
+  if(tab==='log') logs.slice(0,30).forEach(l=>{ const li=el('li'), dv=el('div'); dv.append(el('b',null,l.name+(l.to?' → '+l.to:'')+': '),l.text); li.append(el('time',null,l.time),dv); ul.append(li); });
+  else if(tab==='tasks') tasks.slice(0,12).forEach(t=>{ const li=el('li'), s=STAGES.find(x=>x[0]===t.stage)||STAGES[0], p=el('span','pill'), dt=el('i','dot'); dt.style.background='var('+STATUS[s[2]].v+')'; p.append(dt,s[1]); li.append(el('span',null,t.id+' · '+t.title),p); ul.append(li); });
+  else list.forEach(x=>{ const li=el('li'), b=el('button',null,x.name+' · '+KIND[x.kind]); b.type='button'; b.onclick=()=>select(x.id,true); li.append(b,pill(x.status)); ul.append(li); });
+}
+
+/* ============ KONTROL ============ */
+let speed=1; paused=false;
+const btnPlay=$('btnPlay'); const syncPlay=()=>btnPlay.textContent=paused?'Lanjutkan':'Jeda'; syncPlay();
+btnPlay.onclick=()=>{ paused=!paused; syncPlay(); };
+document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{ speed=+b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
+$('btnPanel').onclick=e=>{ const on=app.classList.toggle('panels'); e.currentTarget.setAttribute('aria-pressed',on); fit(); };
+const openDm=()=>{ $('hermes').hidden=false; $('dmText').focus(); };
+$('btnTask').onclick=openDm; $('btnHermes').onclick=()=>{ $('hermes').hidden=!$('hermes').hidden; };
+$('hermesClose').onclick=()=>{ $('hermes').hidden=true; };
+list.forEach(a=>{ if(a.id!=='ceo'){ const o=el('option',null,a.name+' ('+KIND[a.kind]+')'); o.value=a.id; $('dmAgent').append(o); } });
+$('dmAgent').value='seo_specialist';
+// Simulasi lokal: DM masuk, agent bekerja, lalu melapor ke CEO. Tidak mengirim apa pun ke Hermes.
+$('dmForm').addEventListener('submit',e=>{ e.preventDefault(); const id=$('dmAgent').value, msg=$('dmText').value.trim(); if(!msg) return;
+  const tid='SIM-'+Date.now(); handleEvent({type:'dm',agent:id,from:'ceo',message:msg,task_id:tid}); select(id,false); $('hermes').hidden=true; if(paused){ paused=false; syncPlay(); }
+  later(13,()=>{ const a=agents[id]; if(a.job&&a.job.id===tid) handleEvent({type:'report',agent:id,to:'ceo',message:'Selesai: '+short(msg,60)}); }); });
+
+/* ============ SUMBER DATA HERMES (polling ke API Laravel) ============ */
+const API=(new URLSearchParams(location.search).get('api'))||window.OFFICE_API||DEFAULT_API;
+let lastId=null;
+const setConn=on=>{ $('source').classList.toggle('live',on); $('sourceText').textContent=on?'Terhubung ke Hermes':'Hermes tidak terjangkau'; };
+async function poll(){
+  try{ const r=await fetch(API.replace(/\/$/,'')+'/events?after='+(lastId==null?'':lastId),{headers:{Accept:'application/json'},cache:'no-store'});
+    if(!r.ok) throw new Error(r.status); const j=await r.json();
+    (j.events||[]).forEach(ev=>{ try{ handleEvent(ev); }catch(err){ console.warn('Event Hermes diabaikan:',err.message); } });
+    if(j.last_id!=null) lastId=j.last_id; setConn(true);
+  }catch(err){ setConn(false); }
+  setTimeout(poll,1000);
+}
+window.AstaOffice={handleEvent,agents:list.map(a=>a.id)};
+if(API) poll();
+
+/* ============ LOOP ============ */
+controls.addEventListener('start',()=>{ touch(); focus=null; });
+fit(); new ResizeObserver(fit).observe(stage); setInterval(readTheme,1000);
+// pemanasan supaya frame pertama sudah menampilkan kantor yang sibuk
+list.forEach(a=>{ a.body.position.y=a.sitT>.5?.53:.92; pose(a,1); });
+let last=performance.now(), uiT=0;
+function frame(now){
+  const raw=Math.min(.05,(now-last)/1000); last=now; const dt=paused?0:raw*speed;
+  T+=dt; stepAgents(dt);
+  const k=1-Math.exp(-dt*11); for(const a of list) pose(a,k);
+  stepScene(dt); stepCamera(raw,now/1000); renderer.render(scene,camera); updateLabels();
+  uiT+=raw; if(uiDirty||uiT>.6){ renderUI(); uiDirty=false; uiT=0; }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
