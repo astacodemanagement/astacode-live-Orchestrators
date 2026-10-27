@@ -1,0 +1,6 @@
+name: astacode_office
+description: Kirim DM masuk, progres, dan balasan agent ke kantor virtual Astacode
+events:
+  - agent:start
+  - agent:step
+  - agent:end

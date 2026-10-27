@@ -1,0 +1,31 @@
+{
+  "site": "https://astacode.id",
+  "maxPages": 300,
+  "rate": 3,
+  "keyPages": [
+    "/",
+    "/jasa-pembuatan-aplikasi"
+  ],
+  "psi": {
+    "enabled": true,
+    "strategies": [
+      "mobile",
+      "desktop"
+    ],
+    "maxUrls": 6,
+    "competitors": true
+  },
+  "competitors": [
+    {
+      "url": "https://pesaing-satu.com",
+      "name": "Pesaing 1"
+    },
+    {
+      "url": "https://pesaing-dua.co.id",
+      "name": "Pesaing 2"
+    }
+  ],
+  "competitorSample": 20,
+  "ignoredCompetitors": [],
+  "autoTrack": 3
+}

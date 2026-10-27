@@ -1,0 +1,14 @@
+{
+  "ceo": { "name": "Galih", "role": "CEO", "call": "Mas Galih" },
+  "default": { "name": "Hermes", "role": "Orchestrator utama" },
+  "galih": { "name": "Marketing Manager", "role": "Marketing" },
+  "seo": { "name": "SEO Specialist", "role": "SEO & konten" },
+  "profile-yang-disembunyikan": { "hide": true },
+  "team": [
+    { "id": "rafi", "name": "Rafi", "zone": "leader" },
+    { "id": "icam", "name": "Icam", "zone": "leader" },
+    { "id": "pram", "name": "Pram", "role": "Senior Programmer", "zone": "engineering" },
+    { "id": "irfan", "name": "Irfan", "role": "Engineer", "zone": "engineering" },
+    { "id": "dita", "name": "Dita", "role": "PMO", "zone": "engineering" }
+  ]
+}
